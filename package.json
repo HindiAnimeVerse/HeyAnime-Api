@@ -11,6 +11,7 @@
         "buildnstart": "tsc && node dist/src/server.js",
         "vercel-build": "echo hello",
         "prepare": "node .husky/install.mjs",
+        "postinstall": "patch-package",
         "test": "vitest run --config vitest.config.ts",
         "healthcheck": "curl -f http://localhost:4000/health",
         "typecheck": "tsc --noEmit",
@@ -51,6 +52,7 @@
     "devDependencies": {
         "@types/node": "^22.15.21",
         "husky": "^9.1.7",
+        "patch-package": "^8.0.0",
         "prettier": "^3.5.3",
         "tsx": "^4.19.4",
         "typescript": "^5.8.3",

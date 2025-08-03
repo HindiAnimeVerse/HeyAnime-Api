@@ -1,17 +1,48 @@
 diff --git a/node_modules/aniwatch/dist/index.d.ts b/node_modules/aniwatch/dist/index.d.ts
-index a044c06..07f1539 100644
+index a044c06..442b25e 100644
 --- a/node_modules/aniwatch/dist/index.d.ts
 +++ b/node_modules/aniwatch/dist/index.d.ts
-@@ -178,6 +178,7 @@ type ScrapedHomePage = Pick<ScrapedAnimeCategory, "genres" | "top10Animes"> & {
+@@ -178,6 +178,18 @@ type ScrapedHomePage = Pick<ScrapedAnimeCategory, "genres" | "top10Animes"> & {
      mostPopularAnimes: MostPopularAnime[];
      mostFavoriteAnimes: MostFavoriteAnime[];
      latestCompletedAnimes: LatestCompletedAnime[];
 +    newAnimes: LatestEpisodeAnime[];
++};
++
++type TopSearchItem = {
++    searchTerm: string | null;
++    displayText: string | null;
++    searchUrl: string | null;
++    rank: number;
++};
++
++type ScrapedTopSearch = {
++    topSearchItems: TopSearchItem[];
  };
  
  type EstimatedSchedule = {
+@@ -469,6 +481,19 @@ declare class Scraper {
+      *
+      */
+     getHomePage(): Promise<ScrapedHomePage>;
++    /**
++     * @throws {HiAnimeError}
++     * @example
++     * import { HiAnime } from "aniwatch";
++     *
++     * const hianime = new HiAnime.Scraper()
++     *
++     * hianime.getTopSearch()
++     *  .then((data) => console.log(data))
++     *  .catch((err) => console.error(err));
++     *
++     */
++    getTopSearch(): Promise<ScrapedTopSearch>;
+     /**
+      * @param {AZListSortOptions} sortOption az-list sort option
+      * @param {number} page - page number, defaults to `1`
 diff --git a/node_modules/aniwatch/dist/index.js b/node_modules/aniwatch/dist/index.js
-index 77d528a..86ccc44 100644
+index 77d528a..1470ed7 100644
 --- a/node_modules/aniwatch/dist/index.js
 +++ b/node_modules/aniwatch/dist/index.js
 @@ -348,6 +348,39 @@ var extractMostPopularAnimes = ($, selector, scraperName) => {
@@ -62,7 +93,7 @@ index 77d528a..86ccc44 100644
      genres: []
    };
    try {
-@@ -551,6 +585,7 @@ async function getHomePage() {
+@@ -551,12 +585,63 @@ async function getHomePage() {
        "#anime-featured .row div:nth-of-type(4) .anif-block-ul ul li",
        getHomePage.name
      );
@@ -70,6 +101,372 @@ index 77d528a..86ccc44 100644
      return res;
    } catch (err) {
      throw HiAnimeError.wrapError(err, getHomePage.name);
+   }
+ }
+ 
++// src/hianime/scrapers/topSearch.ts
++async function getTopSearch() {
++  const res = {
++    topSearchItems: []
++  };
++  try {
++    const mainPage = await client.get(SRC_BASE_URL);
++    const $ = load(mainPage.data);
++    
++    // Extract top search items
++    const topSearchSection = $('.xhashtag');
++    
++    if (topSearchSection.length > 0) {
++      topSearchSection.find('a.item').each((_, el) => {
++        const $el = $(el);
++        
++        // Extract the search term from the href parameter
++        const href = $el.attr('href');
++        let searchTerm = null;
++        let searchUrl = null;
++        
++        if (href) {
++          searchUrl = href;
++          // Extract keyword from URL like "/search?keyword=Kaiju%20No.%208%20Season%202"
++          const urlParams = new URLSearchParams(href.split('?')[1]);
++          searchTerm = urlParams.get('keyword');
++          // Decode URL encoding
++          if (searchTerm) {
++            searchTerm = decodeURIComponent(searchTerm);
++          }
++        }
++        
++        // Extract the display text
++        const displayText = $el.text().trim();
++        
++        res.topSearchItems.push({
++          searchTerm: searchTerm || displayText,
++          displayText: displayText,
++          searchUrl: searchUrl,
++          rank: res.topSearchItems.length + 1
++        });
++      });
++    }
++    
++    return res;
++  } catch (err) {
++    throw HiAnimeError.wrapError(err, getTopSearch.name);
++  }
++}
++
+ // src/hianime/scrapers/animeAZList.ts
+ import { load as load2 } from "cheerio";
+ async function getAZList(sortOption, page) {
+@@ -2349,4 +2434,308 @@ var Scraper = class {
+ export {
+   hianime_exports as HiAnime,
+   HiAnimeError
++};
++  /**
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getTopSearch()
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getTopSearch() {
++    return getTopSearch();
++  }
++}
++
++// src/hianime/hianime.ts
++var Scraper = class {
++  /**
++   * @param {string} animeId - unique anime id
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getInfo("steinsgate-3")
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getInfo(animeId) {
++    return getAnimeAboutInfo(animeId);
++  }
++  /**
++   * @param {string} category - anime category
++   * @param {number} page - page number, defaults to `1`
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getCategoryAnime("subbed-anime")
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getCategoryAnime(category, page = 1) {
++    return getAnimeCategory(category, page);
++  }
++  /**
++   * @param {string} animeId - unique anime id
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getEpisodes("steinsgate-3")
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getEpisodes(animeId) {
++    return getAnimeEpisodes(animeId);
++  }
++  /**
++   * @param {string} episodeId - unique episode id
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getEpisodeSources("steinsgate-3?ep=230", "hd-1", "sub")
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getEpisodeSources(episodeId, server = Servers.VidStreaming, category = "sub") {
++    return getAnimeEpisodeSources(episodeId, server, category);
++  }
++  /**
++   * @param {string} genreName - anime genre name
++   * @param {number} page - page number, defaults to `1`
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getGenreAnime("shounen", 2)
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getGenreAnime(genreName, page = 1) {
++    return getGenreAnime(genreName, page);
++  }
++  /**
++   * @param {string} producerName - anime producer name
++   * @param {number} page - page number, defaults to `1`
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getProducerAnimes("toei-animation", 2)
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getProducerAnimes(producerName, page = 1) {
++    return getProducerAnime(producerName, page);
++  }
++  /**
++   * @param {string} q - search query
++   * @param {number} page - page number, defaults to `1`
++   * @param {SearchFilters} filters - optional advance search filters
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper();
++   *
++   * hianime
++   *   .search("monster", 1, {
++   *     genres: "seinen,psychological",
++   *   })
++   *   .then((data) => {
++   *     console.log(data);
++   *   })
++   *   .catch((err) => {
++   *     console.error(err);
++   *   });
++   *
++   */
++  async search(q, page = 1, filters = {}) {
++    return getAnimeSearchResults(q, page, filters);
++  }
++  /**
++   * @param {string} q - search query
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.searchSuggestions("one piece")
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async searchSuggestions(q) {
++    return getAnimeSearchSuggestion(q);
++  }
++  /**
++   * @param {string} animeEpisodeId - unique anime episode id
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getEpisodeServers("steinsgate-0-92?ep=2055")
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getEpisodeServers(animeEpisodeId) {
++    return getEpisodeServers(animeEpisodeId);
++  }
++  /**
++   * @param {string} date - date in `YYYY-MM-DD` format
++   * @param {number} tzOffset - timezone offset in minutes, defaults to `-330` (IST)
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   * const timezoneOffset = -330; // IST offset in minutes
++   *
++   * hianime.getEstimatedSchedule("2025-06-09", timezoneOffset)
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getEstimatedSchedule(date, tzOffset = -330) {
++    return getEstimatedSchedule(date, tzOffset);
++  }
++  /**
++   * @param {string} animeId - unique anime id
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getNextEpisodeSchedule("one-piece-100")
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getNextEpisodeSchedule(animeId) {
++    return getNextEpisodeSchedule(animeId);
++  }
++  /**
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getHomePage()
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getHomePage() {
++    return getHomePage();
++  }
++  /**
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getTopSearch()
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getTopSearch() {
++    return getTopSearch();
++  }
++  /**
++   * @param {AZListSortOptions} sortOption az-list sort option
++   * @param {number} page - page number, defaults to `1`
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getAZList("0-9", 1)
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getAZList(sortOption, page = 1) {
++    return getAZList(sortOption, page);
++  }
++  /**
++   * @param {string} animeId - unique anime id
++   * @throws {HiAnimeError}
++   * @example
++   * import { HiAnime } from "aniwatch";
++   *
++   * const hianime = new HiAnime.Scraper()
++   *
++   * hianime.getQtipInfo("one-piece-100")
++   *  .then((data) => console.log(data))
++   *  .catch((err) => console.error(err));
++   *
++   */
++  async getQtipInfo(animeId) {
++    return getAnimeQtipInfo(animeId);
++  }
++};
++
++// src/hianime/hianime.ts
++var Servers = /* @__PURE__ */ ((Servers2) => {
++  Servers2["VidStreaming"] = "hd-1";
++  Servers2["MegaCloud"] = "megacloud";
++  Servers2["StreamSB"] = "streamsb";
++  Servers2["StreamTape"] = "streamtape";
++  Servers2["VidCloud"] = "hd-2";
++  Servers2["AsianLoad"] = "asianload";
++  Servers2["GogoCDN"] = "gogocdn";
++  Servers2["MixDrop"] = "mixdrop";
++  Servers2["UpCloud"] = "upcloud";
++  Servers2["VizCloud"] = "vizcloud";
++  Servers2["MyCloud"] = "mycloud";
++  Servers2["Filemoon"] = "filemoon";
++  return Servers2;
++})(Servers || {});
++
++// src/hianime/hianime.ts
++var hianime_exports = {};
++__export(hianime_exports, {
++  AZ_LIST_SORT_OPTIONS: () => AZ_LIST_SORT_OPTIONS,
++  SEARCH_PAGE_FILTERS: () => SEARCH_PAGE_FILTERS,
++  Scraper: () => Scraper,
++  Servers: () => Servers
++});
++
++export {
++  HiAnimeError,
++  hianime_exports as HiAnime
+ };
+\ No newline at end of file
 diff --git a/node_modules/aniwatch/dist/index.js.backup b/node_modules/aniwatch/dist/index.js.backup
 new file mode 100644
 index 0000000..77d528a

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { HiAnime } from "aniwatch";
 import { cache } from "../config/cache.js";
+import { getTopSearchData } from "../scrapers/topSearchScraper.js";
 import type { ServerContext } from "../config/context.js";
 
 const hianime = new HiAnime.Scraper();
@@ -15,6 +16,19 @@ hianimeRouter.get("/home", async (c) => {
 
     const data = await cache.getOrSet<HiAnime.ScrapedHomePage>(
         hianime.getHomePage,
+        cacheConfig.key,
+        cacheConfig.duration
+    );
+
+    return c.json({ status: 200, data }, { status: 200 });
+});
+
+// /api/v2/hianime/topsearch
+hianimeRouter.get("/topsearch", async (c) => {
+    const cacheConfig = c.get("CACHE_CONFIG");
+
+    const data = await cache.getOrSet<any>(
+        getTopSearchData,
         cacheConfig.key,
         cacheConfig.duration
     );

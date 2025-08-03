@@ -72,6 +72,7 @@
     - [Render](#render)
 - [Documentation](#documentation)
     - [GET Anime Home Page](#get-anime-home-page)
+    - [GET Top Search](#get-top-search)
     - [GET Anime A-Z List](#get-anime-a-z-list)
     - [GET Anime Qtip Info](#get-anime-qtip-info)
     - [GET Anime About Info](#get-anime-about-info)
@@ -416,6 +417,85 @@ console.log(data);
     "mostPopularAnimes": [...],
     "mostFavoriteAnimes": [...],
     "latestCompletedAnimes": [...]
+  }
+}
+```
+
+[🔼 Back to Top](#table-of-contents)
+
+</details>
+
+<details>
+
+<summary>
+
+### `GET` Top Search
+
+</summary>
+
+#### Endpoint
+
+```bash
+/api/v2/hianime/topsearch
+```
+
+#### Description
+
+Retrieves the top search terms from the HiAnime homepage. This endpoint extracts the trending search queries that users are currently searching for, providing insights into popular anime content.
+
+#### Request Sample
+
+```javascript
+const resp = await fetch("/api/v2/hianime/topsearch");
+const data = await resp.json();
+console.log(data);
+```
+
+#### Response Schema
+
+```javascript
+{
+  success: true,
+  data: {
+    topSearchItems: [
+      {
+        searchTerm: string,
+        displayText: string,
+        searchUrl: string,
+        rank: number
+      },
+      {...},
+    ]
+  }
+}
+```
+
+#### Response Sample
+
+```javascript
+{
+  "success": true,
+  "data": {
+    "topSearchItems": [
+      {
+        "searchTerm": "Kaiju No. 8 Season 2",
+        "displayText": "Kaiju No. 8 Season 2",
+        "searchUrl": "/search?keyword=Kaiju%20No.%208%20Season%202",
+        "rank": 1
+      },
+      {
+        "searchTerm": "One Piece",
+        "displayText": "One Piece",
+        "searchUrl": "/search?keyword=One%20Piece",
+        "rank": 2
+      },
+      {
+        "searchTerm": "Demon Slayer: Kimetsu no Yaiba",
+        "displayText": "Demon Slayer: Kimetsu no Yaiba",
+        "searchUrl": "/search?keyword=Demon%20Slayer%3A%20Kimetsu%20no%20Yaiba",
+        "rank": 3
+      }
+    ]
   }
 }
 ```
